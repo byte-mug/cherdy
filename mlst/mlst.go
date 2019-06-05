@@ -69,7 +69,11 @@ func (i *InternalNode) Initialize() {
 	i.nm.Init()
 	i.nd = avl.NewWithStringComparator()
 	i.Msg = make(chan bufferex.Binary,64)
-} 
+}
+func (i *InternalNode) SetNodeName(s string) {
+	sum := md5.Sum([]byte(s))
+	i.nm.SetSelf(sum[:])
+}
 
 func (i *InternalNode) NodeMeta(limit int) []byte {
 	if limit<len(i.Metadata) { return nil }
@@ -111,12 +115,11 @@ func (i *InternalNode) NotifyJoin(node *memberlist.Node) {
 	}
 }
 
-func (i *InternalNode) NotifyLeave(node *memberlist.Node) {
-	i.nd.Put(node.Name,node)
-	
+func (i *InternalNode) NotifyUpdate(node *memberlist.Node) {
+	//i.nd.Put(node.Name,node)
 }
 
-func (i *InternalNode) NotifyUpdate(node *memberlist.Node) {
+func (i *InternalNode) NotifyLeave(node *memberlist.Node) {
 	i.nd.Remove(node.Name)
 	
 	n := DecodeNodeMeta(node.Meta)
