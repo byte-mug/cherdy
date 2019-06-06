@@ -29,6 +29,7 @@ import (
 	"flag"
 	"log"
 	"crypto/md5"
+	"strings"
 )
 
 var name = flag.String("name","","Memberlist: node name")
@@ -44,6 +45,8 @@ var port = flag.Int("port",0,"Memberlist: bind port")
 
 var advaddr = flag.String("advaddr","","Memberlist: advertise addr")
 var advport = flag.Int("advport",0,"Memberlist: advertise port")
+
+var join = flag.String("join","","Memberlist: Comma-Seperated list of other nodes to join")
 
 func GetConfig() (cfg *memberlist.Config) {
 	if *local {
@@ -96,3 +99,8 @@ func GetConfig() (cfg *memberlist.Config) {
 	return cfg
 }
 
+func Join(ml *memberlist.Memberlist) {
+	if len(*join)!=0 {
+		ml.Join(strings.Split(*join,","))
+	}
+}

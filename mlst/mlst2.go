@@ -81,7 +81,23 @@ on the message-reader 'd'.
 */
 type Handler func(w *WrapNode,d *MessageReader, msg bufferex.Binary) bool
 
+/*
+Start Sequence:
+
+	wn := new(WrapNode)
+	wn.Initialize()
+	wn.SetCfg(cfg) // set memberlist config (sets cfg.Delegate, etc...)
+	
+	// Add any Plugins
+	
+	wn.PreStart()
+	
+	// start/create memberlist
+	
+	wn.PostStart()
+*/
 type WrapNode struct{
+	Meta  NodeMeta
 	Deleg InternalNode
 	Membl *memberlist.Memberlist
 	Handlers map[uint64]Handler
@@ -91,6 +107,7 @@ type WrapNode struct{
 
 
 func (w *WrapNode) Initialize() {
+	w.Meta = make(NodeMeta)
 	w.Deleg.Initialize()
 	w.Handlers = make(map[uint64]Handler)
 }
@@ -101,10 +118,22 @@ func (w *WrapNode) Lookup(name string) *memberlist.Node {
 	return nd.Key.(*memberlist.Node)
 }
 
+func (w *WrapNode) SetCfg(cfg *memberlist.Config) {
+	cfg.Delegate = &w.Deleg
+	cfg.Events   = &w.Deleg
+}
+
+/*
+Called, before the memberlist has been created.
+*/
+func (w *WrapNode) PreStart() {
+	w.Deleg.Metadata = w.Meta.Bytes()
+}
+
 /*
 Called, after the memberlist has been created.
 */
-func (w *WrapNode) Start() {
+func (w *WrapNode) PostStart() {
 	go w.consumer()
 }
 
