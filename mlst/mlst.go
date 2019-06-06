@@ -45,7 +45,7 @@ func (n NodeMeta) Has(k uint32) (ok bool) {
 func (n NodeMeta) HasFlags(k, f uint32) (ok bool) {
 	var g uint32
 	g,ok = n[k]
-	return (g&f)==0
+	return (g&f)!=0
 }
 
 func DecodeNodeMeta(m []byte) (n NodeMeta) {

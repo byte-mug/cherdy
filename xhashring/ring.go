@@ -166,6 +166,8 @@ func (t *Table) Leave(name string) {
 
 /*
 A node, with the hashring extension enabled turns off the hashring extension.
+
+On nodes, with the hashring extension already turned off, this has no effect.
 */
 func (t *Table) Invalidate(name string) {
 	v := t.index.Lookup(name)
@@ -177,6 +179,35 @@ func (t *Table) Invalidate(name string) {
 		t.ring.Tree.Remove(e.Hash)
 	}
 }
+
+/*
+A node turns on the hashring extension.
+
+On nodes, with the hashring extension already turned on, this has no effect.
+*/
+func (t *Table) Validate(name string) {
+	v := t.index.Lookup(name)
+	if v!=nil {
+		/* Already turned on. */
+		return
+	}
+	
+	ent := &Entry{Name:name,Hash:t.HashFunc(name)}
+	
+	t.lock()
+	defer t.unlock()
+	
+	v = t.index.Lookup(name)
+	if v!=nil {
+		v.Value.(*Entry).join()
+		return
+	}
+	
+	ent.join()
+	t.index.Insert(name,ent)
+	t.ring.Tree.Put(ent.Hash,ent)
+}
+
 
 func (t *Table) death() (es []*Entry) {
 	now := time.Now()
