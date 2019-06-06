@@ -34,6 +34,18 @@ const (
 	mfr_retain uint = 1<<iota
 )
 
+type SendType uint
+const (
+	ST_BestFit SendType = iota // Use best method.
+	ST_Datagram // Use Datagram. Suited for small messages that fit in one packet.
+	ST_Reliable // Use Reliable tramsmission (TCP).
+	ST_NoDatagram // Use best method, that is not Datagram
+	
+	// The folloring methods are kind of Meta-variants.
+	ST_Fast // Use the fastest method.
+	ST_Stable // Use the most stable method
+)
+
 type MessageReader struct{
 	*msgpack.Decoder
 	*bytes.Buffer
@@ -153,10 +165,28 @@ func (w *WrapNode) consumer() {
 		w.consume(msg)
 	}
 }
-func (w *WrapNode) Send(to *memberlist.Node, msg []byte) error {
-	if len(msg)<=912 {
-		return w.Membl.SendBestEffort(to,msg)
+func (w *WrapNode) SendTo(st SendType,to *memberlist.Node, msg []byte) error {
+	switch st {
+	case ST_BestFit:
+		if len(msg)<=912 {
+			st = ST_Datagram
+		} else {
+			st = ST_NoDatagram
+		}
+	case ST_Fast:
+		if len(msg)<=912 {
+			st = ST_Datagram
+		}
 	}
+	
+	
+	switch st {
+	case ST_Datagram: return w.Membl.SendBestEffort(to,msg)
+	case ST_Reliable: return w.Membl.SendReliable(to,msg)
+	}
+	
+	// TODO: call other options here.
+	
 	return w.Membl.SendReliable(to,msg)
 }
 
