@@ -25,16 +25,11 @@ package mlst
 
 import (
 	"bytes"
-	"crypto/md5"
 	xdr "github.com/davecgh/go-xdr/xdr2"
 	"github.com/hashicorp/memberlist"
-	"github.com/byte-mug/golibs/chordhash"
-	avl "github.com/emirpasic/gods/trees/avltree"
+	"github.com/byte-mug/golibs/concurrent/sortlist"
+	"github.com/emirpasic/gods/utils"
 	"github.com/byte-mug/golibs/bufferex"
-)
-
-const (
-	NM_IsDHT = 0x10000 | iota
 )
 
 type NodeMeta map[uint32]uint32
@@ -43,9 +38,14 @@ func (n NodeMeta) Bytes() []byte {
 	xdr.Marshal(buf,n)
 	return buf.Bytes()
 }
-func (n NodeMeta) Has(u uint32) (ok bool) {
-	_,ok = n[u]
+func (n NodeMeta) Has(k uint32) (ok bool) {
+	_,ok = n[k]
 	return
+}
+func (n NodeMeta) HasFlags(k, f uint32) (ok bool) {
+	var g uint32
+	g,ok = n[k]
+	return (g&f)==0
 }
 
 func DecodeNodeMeta(m []byte) (n NodeMeta) {
@@ -57,8 +57,9 @@ type InternalNode struct {
 	Metadata []byte
 	Tlq memberlist.TransmitLimitedQueue
 	Msg chan bufferex.Binary
-	nm chordhash.NodeManager
-	nd *avl.Tree
+	Nodes sortlist.Sortlist
+	AsyncHooks []memberlist.EventDelegate
+	SyncHooks []memberlist.EventDelegate
 }
 //func (i *InternalNode)
 func (i *InternalNode) nodes() int {
@@ -66,13 +67,8 @@ func (i *InternalNode) nodes() int {
 }
 func (i *InternalNode) Initialize() {
 	i.Tlq.NumNodes,i.Tlq.RetransmitMult = i.nodes,1
-	i.nm.Init()
-	i.nd = avl.NewWithStringComparator()
+	i.Nodes.Cmp = utils.StringComparator
 	i.Msg = make(chan bufferex.Binary,64)
-}
-func (i *InternalNode) SetNodeName(s string) {
-	sum := md5.Sum([]byte(s))
-	i.nm.SetSelf(sum[:])
 }
 
 func (i *InternalNode) NodeMeta(limit int) []byte {
@@ -106,27 +102,20 @@ var _ memberlist.Delegate = (*InternalNode)(nil)
 
 
 func (i *InternalNode) NotifyJoin(node *memberlist.Node) {
-	i.nd.Put(node.Name,node)
-	
-	n := DecodeNodeMeta(node.Meta)
-	if n.Has(NM_IsDHT) {
-		h := md5.Sum([]byte(node.Name))
-		i.nm.Insert(h[:],node)
-	}
+	i.Nodes.Insert(node.Name,node)
+	for _,h := range i.AsyncHooks { go h.NotifyJoin(node) }
+	for _,h := range i.SyncHooks { h.NotifyJoin(node) }
 }
 
 func (i *InternalNode) NotifyUpdate(node *memberlist.Node) {
-	//i.nd.Put(node.Name,node)
+	for _,h := range i.AsyncHooks { go h.NotifyUpdate(node) }
+	for _,h := range i.SyncHooks { h.NotifyUpdate(node) }
 }
 
 func (i *InternalNode) NotifyLeave(node *memberlist.Node) {
-	i.nd.Remove(node.Name)
-	
-	n := DecodeNodeMeta(node.Meta)
-	if n.Has(NM_IsDHT) {
-		h := md5.Sum([]byte(node.Name))
-		i.nm.Remove(h[:])
-	}
+	defer i.Nodes.Delete(node.Name)
+	for _,h := range i.AsyncHooks { go h.NotifyLeave(node) }
+	for _,h := range i.SyncHooks { h.NotifyLeave(node) }
 }
 
 var _ memberlist.EventDelegate = (*InternalNode)(nil)

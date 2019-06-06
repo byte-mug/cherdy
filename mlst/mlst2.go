@@ -27,20 +27,19 @@ import (
 	"bytes"
 	"github.com/vmihailenco/msgpack"
 	"github.com/hashicorp/memberlist"
-	//"github.com/byte-mug/golibs/chordhash"
-	//avl "github.com/emirpasic/gods/trees/avltree"
 	"github.com/byte-mug/golibs/bufferex"
 )
 
-const (
-	MH_ForwardFinger uint64 = iota
-	MH_ForwardPrecise
-)
+type MessageReader struct{
+	*msgpack.Decoder
+	*bytes.Buffer
+}
 
-func ReadMessage(b []byte) *msgpack.Decoder {
-	dec := msgpack.NewDecoder(bytes.NewReader(b))
-	dec.UseDecodeInterfaceLoose(true)
-	return dec
+func ReadMessage(b []byte) *MessageReader {
+	rdr := new(MessageReader)
+	rdr.Buffer = bytes.NewBuffer(b)
+	rdr.Decoder = msgpack.NewDecoder(rdr.Buffer)
+	return rdr
 }
 type MessageBuffer struct{
 	*msgpack.Encoder
@@ -61,7 +60,7 @@ func (m *MessageBuffer) Reset() *MessageBuffer {
 }
 
 
-type Handler func(w *WrapNode,d *msgpack.Decoder, b []byte) bool
+type Handler func(w *WrapNode,d *MessageReader, b []byte) bool
 
 type WrapNode struct{
 	Deleg InternalNode
@@ -71,39 +70,16 @@ type WrapNode struct{
 
 // func (w *WrapNode)
 
-func forwardFinger(w *WrapNode,d *msgpack.Decoder, b []byte) bool {
-	nid,err := d.DecodeBytes()
-	if err!=nil { return false }
-	sn := w.Deleg.nm.LookupFinger(nid)
-	if sn==nil { return false }
-	
-	/* Process further. */
-	if w.Deleg.nm.Self == sn.Key.(string) { return true }
-	
-	w.Send(sn.Value.(*memberlist.Node),b)
-	
-	return false
-}
-func forwardPrecise(w *WrapNode,d *msgpack.Decoder, b []byte) bool {
-	nid,err := d.DecodeBytes()
-	if err!=nil { return false }
-	sn := w.Deleg.nm.LookupPrecise(nid)
-	if sn==nil { return false }
-	
-	/* Process further. */
-	if w.Deleg.nm.Self == sn.Key.(string) { return true }
-	
-	w.Send(sn.Value.(*memberlist.Node),b)
-	
-	return false
-}
-
 
 func (w *WrapNode) Initialize() {
 	w.Deleg.Initialize()
 	w.Handlers = make(map[uint64]Handler)
-	w.Handlers[MH_ForwardFinger ] = forwardFinger
-	w.Handlers[MH_ForwardPrecise] = forwardPrecise
+}
+
+func (w *WrapNode) Lookup(name string) *memberlist.Node {
+	nd := w.Deleg.Nodes.Lookup(name)
+	if nd==nil { return nil }
+	return nd.Key.(*memberlist.Node)
 }
 
 /*
