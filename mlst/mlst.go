@@ -67,8 +67,8 @@ func (i *InternalNode) nodes() int {
 }
 func (i *InternalNode) Initialize() {
 	i.Tlq.NumNodes,i.Tlq.RetransmitMult = i.nodes,1
-	i.Nodes.Cmp = utils.StringComparator
 	i.Msg = make(chan bufferex.Binary,64)
+	i.Nodes.Cmp = utils.StringComparator
 }
 
 func (i *InternalNode) NodeMeta(limit int) []byte {
@@ -96,7 +96,7 @@ func (i *InternalNode) GetBroadcasts(overhead, limit int) [][]byte {
 	return i.Tlq.GetBroadcasts(overhead,limit)
 }
 func (i *InternalNode) LocalState(join bool) []byte { return nil }
-func (i *InternalNode) MergeRemoteState(buf []byte, join bool) {  }
+func (i *InternalNode) MergeRemoteState(buf []byte, join bool) { }
 
 var _ memberlist.Delegate = (*InternalNode)(nil)
 
@@ -119,6 +119,4 @@ func (i *InternalNode) NotifyLeave(node *memberlist.Node) {
 }
 
 var _ memberlist.EventDelegate = (*InternalNode)(nil)
-
-
 
