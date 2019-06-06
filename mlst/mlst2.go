@@ -30,9 +30,15 @@ import (
 	"github.com/byte-mug/golibs/bufferex"
 )
 
+const (
+	mfr_retain uint = 1<<iota
+)
+
 type MessageReader struct{
 	*msgpack.Decoder
 	*bytes.Buffer
+	
+	flags uint
 }
 
 func ReadMessage(b []byte) *MessageReader {
@@ -41,6 +47,11 @@ func ReadMessage(b []byte) *MessageReader {
 	rdr.Decoder = msgpack.NewDecoder(rdr.Buffer)
 	return rdr
 }
+func RetainBinary(r *MessageReader) { r.flags |= mfr_retain }
+func (r *MessageReader) free(b bufferex.Binary) {
+	if (r.flags&mfr_retain)==0 { b.Free() }
+}
+
 type MessageBuffer struct{
 	*msgpack.Encoder
 	buf bytes.Buffer
@@ -59,8 +70,16 @@ func (m *MessageBuffer) Reset() *MessageBuffer {
 	return m
 }
 
+/*
+Returns true, if further processing should be done.
 
-type Handler func(w *WrapNode,d *MessageReader, b []byte) bool
+If the implementor wants to retain the msg value it needs to call:
+
+	mlst.RetainBinary(d)
+
+on the message-reader 'd'.
+*/
+type Handler func(w *WrapNode,d *MessageReader, msg bufferex.Binary) bool
 
 type WrapNode struct{
 	Deleg InternalNode
@@ -90,14 +109,14 @@ func (w *WrapNode) Start() {
 }
 
 func (w *WrapNode) consume(msg bufferex.Binary) {
-	defer msg.Free()
 	dec := ReadMessage(msg.Bytes())
+	defer dec.free(msg)
 restart:
 	i,e := dec.DecodeUint64()
 	if e!=nil { return }
 	h := w.Handlers[i]
 	if h==nil { return }
-	if h(w,dec,msg.Bytes()) { goto restart }
+	if h(w,dec,msg) { goto restart }
 }
 
 func (w *WrapNode) consumer() {
