@@ -66,18 +66,17 @@ func (r *MessageReader) free(b bufferex.Binary) {
 
 type MessageBuffer struct{
 	*msgpack.Encoder
-	buf bytes.Buffer
+	bytes.Buffer
 }
-func (m *MessageBuffer) Bytes() []byte { return m.buf.Bytes() }
 func (m *MessageBuffer) Init() *MessageBuffer {
-	m.buf.Truncate(0)
-	m.Encoder = msgpack.NewEncoder(&m.buf)
+	m.Buffer.Truncate(0)
+	m.Encoder = msgpack.NewEncoder(&m.Buffer)
 	return m
 }
 func (m *MessageBuffer) Reset() *MessageBuffer {
-	m.buf.Truncate(0)
+	m.Buffer.Truncate(0)
 	if m.Encoder==nil {
-		m.Encoder = msgpack.NewEncoder(&m.buf)
+		m.Encoder = msgpack.NewEncoder(&m.Buffer)
 	}
 	return m
 }
@@ -109,6 +108,7 @@ Start Sequence:
 	wn.PostStart()
 */
 type WrapNode struct{
+	Name  string
 	Meta  NodeMeta
 	Deleg InternalNode
 	Membl *memberlist.Memberlist
@@ -131,6 +131,7 @@ func (w *WrapNode) Lookup(name string) *memberlist.Node {
 }
 
 func (w *WrapNode) SetCfg(cfg *memberlist.Config) {
+	w.Name = cfg.Name
 	cfg.Delegate = &w.Deleg
 	cfg.Events   = &w.Deleg
 }
