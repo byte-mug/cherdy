@@ -57,6 +57,7 @@ func ReadMessage(b []byte) *MessageReader {
 	rdr := new(MessageReader)
 	rdr.Buffer = bytes.NewBuffer(b)
 	rdr.Decoder = msgpack.NewDecoder(rdr.Buffer)
+	rdr.Decoder.UseDecodeInterfaceLoose(true)
 	return rdr
 }
 func RetainBinary(r *MessageReader) { r.flags |= mfr_retain }
@@ -71,12 +72,14 @@ type MessageBuffer struct{
 func (m *MessageBuffer) Init() *MessageBuffer {
 	m.Buffer.Truncate(0)
 	m.Encoder = msgpack.NewEncoder(&m.Buffer)
+	m.Encoder.UseCompactEncoding(true)
 	return m
 }
 func (m *MessageBuffer) Reset() *MessageBuffer {
 	m.Buffer.Truncate(0)
 	if m.Encoder==nil {
 		m.Encoder = msgpack.NewEncoder(&m.Buffer)
+		m.Encoder.UseCompactEncoding(true)
 	}
 	return m
 }
@@ -127,7 +130,7 @@ func (w *WrapNode) Initialize() {
 func (w *WrapNode) Lookup(name string) *memberlist.Node {
 	nd := w.Deleg.Nodes.Lookup(name)
 	if nd==nil { return nil }
-	return nd.Key.(*memberlist.Node)
+	return nd.Value.(*memberlist.Node)
 }
 
 func (w *WrapNode) SetCfg(cfg *memberlist.Config) {
@@ -165,6 +168,10 @@ func (w *WrapNode) consumer() {
 	for msg := range w.Deleg.Msg {
 		w.consume(msg)
 	}
+}
+func (w *WrapNode) SendSelf(msg []byte) {
+	n := bufferex.NewBinary(msg)
+	w.Deleg.ConsumeB(n)
 }
 func (w *WrapNode) SendTo(st SendType,to *memberlist.Node, msg []byte) error {
 	switch st {

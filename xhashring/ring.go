@@ -31,6 +31,8 @@ import (
 	"sync"
 	"crypto/md5"
 	"time"
+	
+	"fmt"
 )
 
 func md5hf(s string) string {
@@ -46,6 +48,7 @@ type Entry struct{
 	alive bool
 	tmout time.Time
 }
+func (e *Entry) String() string { return fmt.Sprintf("{%q  #: %x}",e.Name,e.Hash) }
 func (e *Entry) join() {
 	e.lock.Lock()
 	defer e.lock.Unlock()
@@ -87,6 +90,26 @@ func (t *Table) lock() {
 func (t *Table) unlock() {
 	t.wg.Done()
 	t.lck.Unlock()
+}
+func (t *Table) Debug_Dump() {
+	t.lck.Lock()
+	defer t.lck.Unlock()
+	
+	fmt.Println("{")
+	for n := t.ring.Tree.Left(); n!=nil; n = n.Next() {
+		//fmt.Printf("\t%x -> %q\n",n.Key,n.Value.(*Entry).Name)
+		fmt.Println("\t",n.Value)
+	}
+	fmt.Println("}")
+}
+
+func (t *Table) dump() {
+	fmt.Println("{")
+	for n := t.ring.Tree.Left(); n!=nil; n = n.Next() {
+		//fmt.Printf("\t%x -> %q\n",n.Key,n.Value.(*Entry).Name)
+		fmt.Println("\t",n.Value)
+	}
+	fmt.Println("}")
 }
 
 func (t *Table) Init() {

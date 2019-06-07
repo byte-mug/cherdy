@@ -1,5 +1,7 @@
-### Reserved Ranges
+### Reserved Ranges (Message header)
 
 |Begin|End|Name|
 |---|---|---|
-|`0x0`|`0x10`|`xhashring`|
+|`0x20000`|`...`|`xhashring`¹|
+
+- ¹: Preliminary

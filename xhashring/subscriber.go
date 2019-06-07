@@ -24,11 +24,14 @@ SOFTWARE.
 package xhashring
 
 import (
+	"fmt"
 	"github.com/byte-mug/cherdy/mlst"
 	"github.com/hashicorp/memberlist"
 	"github.com/byte-mug/golibs/bufferex"
 	avl "github.com/emirpasic/gods/trees/avltree"
 )
+
+func debug(i ...interface{}) { fmt.Println(i...) }
 
 const (
 	MT_HashRingFlags = 0x20000 | iota
@@ -40,7 +43,6 @@ const (
 )
 
 const (
-	// TODO: use a low number (base 0).
 	MH_HrRoute = 0x20000 + iota
 )
 
@@ -52,15 +54,18 @@ const (
 )
 
 type Subscriber struct{
-	Tab *Table
+	Tab Table
 	Num int // Replication Factor
 	Node *mlst.WrapNode
 }
 
+
 func (s *Subscriber) NotifyJoin(node *memberlist.Node) {
 	m := mlst.DecodeNodeMeta(node.Meta)
 	if m.HasFlags(MT_HashRingFlags,HRF_Member) {
+		fmt.Println("enter",node.Name)
 		s.Tab.Join(node.Name)
+		//s.Tab.Debug_Dump()
 	} else {
 		s.Tab.Invalidate(node.Name)
 	}
@@ -76,6 +81,7 @@ func (s *Subscriber) NotifyUpdate(node *memberlist.Node) {
 }
 
 func (s *Subscriber) NotifyLeave(node *memberlist.Node) {
+	fmt.Println("leave",node.Name)
 	s.Tab.Leave(node.Name)
 }
 
