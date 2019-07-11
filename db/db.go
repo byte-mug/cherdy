@@ -351,5 +351,11 @@ func (s *Store) Put(w *mlst.WrapNode, d *mlst.MessageReader, msg bufferex.Binary
 	return false
 }
 
+func (s *Store) Attach(wn *mlst.WrapNode) {
+	wn.Handlers[MH_Get] = s.Get
+	wn.Handlers[MH_Put] = s.Put
+}
+
+
 // ##
 
